@@ -176,3 +176,6 @@ $RECYCLE.BIN/
 
 # Local AI assistant instructions
 AGENTS.md
+
+# 本地运行数据（便携模式 userData / 临时文件）
+.runtime/

@@ -13,6 +13,10 @@ Object.assign(process.env, mirrorEnv);
 const ELECTRON = require('electron');
 const DEV_URL = process.env.VITE_DEV_SERVER_URL || 'http://127.0.0.1:1420';
 const VITE_CLI = path.join(path.dirname(require.resolve('vite/package.json')), 'bin', 'vite.js');
+// 追加给 Electron 主进程的启动参数（例如受限环境下的 --no-sandbox）
+const EXTRA_ELECTRON_ARGS = (process.env.PAPERQUAY_ELECTRON_ARGS || '')
+  .split(/\s+/)
+  .filter(Boolean);
 
 function waitForServer(url, timeoutMs = 45000) {
   const startedAt = Date.now();
@@ -93,7 +97,7 @@ function snapshotWatchedElectronFiles(rootDir) {
 }
 
 function startElectron() {
-  electronProcess = spawn(ELECTRON, ['.'], {
+  electronProcess = spawn(ELECTRON, ['.', ...EXTRA_ELECTRON_ARGS], {
     stdio: 'inherit',
     env: {
       ...process.env,

@@ -9,6 +9,12 @@ const {
 const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
 let backend = null;
 
+// 便携模式：数据目录可由环境变量指定（受限沙箱/绿色版/U 盘运行都需要）。
+// 必须在任何 app.getPath('userData') 使用之前设置。
+if (process.env.PAPERQUAY_DATA_DIR) {
+  app.setPath('userData', path.resolve(process.env.PAPERQUAY_DATA_DIR));
+}
+
 registerLocalPdfProtocolScheme();
 
 function getBackend() {
