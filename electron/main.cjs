@@ -1,4 +1,5 @@
 const path = require('node:path');
+const fs = require('node:fs');
 const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const { createBackend } = require('./backend.cjs');
 const {
@@ -9,10 +10,31 @@ const {
 const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
 let backend = null;
 
-// 便携模式：数据目录可由环境变量指定（受限沙箱/绿色版/U 盘运行都需要）。
+// 便携模式（优先级从高到低）：
+// 1. 环境变量 PAPERQUAY_DATA_DIR 显式指定
+// 2. 可执行文件旁边存在 data/ 目录（绿色版：数据和程序放在一起，可整体拷贝）
+// 3. 默认 %APPDATA%\<app>（安装版的标准行为）
 // 必须在任何 app.getPath('userData') 使用之前设置。
-if (process.env.PAPERQUAY_DATA_DIR) {
-  app.setPath('userData', path.resolve(process.env.PAPERQUAY_DATA_DIR));
+function resolvePortableDataDir() {
+  if (process.env.PAPERQUAY_DATA_DIR) {
+    return path.resolve(process.env.PAPERQUAY_DATA_DIR);
+  }
+
+  try {
+    const besideExe = path.join(path.dirname(app.getPath('exe')), 'data');
+    if (fs.existsSync(besideExe) && fs.statSync(besideExe).isDirectory()) {
+      return besideExe;
+    }
+  } catch {
+    // 读取失败就退回默认目录
+  }
+
+  return null;
+}
+
+const portableDataDir = resolvePortableDataDir();
+if (portableDataDir) {
+  app.setPath('userData', portableDataDir);
 }
 
 registerLocalPdfProtocolScheme();

@@ -1,4 +1,5 @@
 const fs = require('node:fs/promises');
+const os = require('node:os');
 const path = require('node:path');
 const { execFile } = require('node:child_process');
 const { promisify } = require('node:util');
@@ -43,9 +44,26 @@ async function updateWindowsExecutableIcon(context) {
   await assertFile(iconPath, 'Windows icon');
   await assertFile(rceditPath, 'rcedit executable');
 
-  await run(rceditPath, [exePath, '--set-icon', iconPath], {
-    windowsHide: true,
-  });
+  // rcedit 遇到非 ASCII 路径会报 "Unable to load file"（中文/日文项目路径很常见）。
+  // 主路径失败时，把 exe 与 ico 复制到 ASCII 临时目录设图标，再复制回去。
+  try {
+    await run(rceditPath, [exePath, '--set-icon', iconPath], { windowsHide: true });
+  } catch (error) {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'paperquay-icon-'));
+    const tmpExe = path.join(tmpDir, 'app.exe');
+    const tmpIcon = path.join(tmpDir, 'icon.ico');
+
+    try {
+      await fs.copyFile(exePath, tmpExe);
+      await fs.copyFile(iconPath, tmpIcon);
+      await run(rceditPath, [tmpExe, '--set-icon', tmpIcon], { windowsHide: true });
+      await fs.copyFile(tmpExe, exePath);
+    } catch (fallbackError) {
+      throw new Error(`embed Windows icon failed: ${error.message}; fallback: ${fallbackError.message}`);
+    } finally {
+      await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
+    }
+  }
 
   console.log(`[afterPack] updated Windows executable icon: ${exeName}`);
 }
